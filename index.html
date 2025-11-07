@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Investigative Analysis App: Day 2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "react": "https://esm.sh/react@18.2.0"
+      }
+    }
+    </script>
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #0d0d1a;
+      }
+      #three-canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+      }
+      .card {
+        background-color: rgba(17, 24, 39, 0.9);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .pulse-grow {
+        animation: pulse-grow-animation 2s infinite;
+      }
+      @keyframes pulse-grow-animation {
+        0%, 100% {
+          transform: scale(1);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(1.05);
+          opacity: 0.9;
+        }
+      }
+       /* Simple fade-in animation */
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fadeIn {
+        animation: fadeIn 0.5s ease-out forwards;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="three-canvas"></canvas>
+    <div id="root"></div>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel" data-type="module">
+      import React, { useState, useEffect, useCallback } from 'react';
+      import ReactDOM from 'react-dom/client';
+      import * as THREE from 'three';
+
+      // --- All Application Code is now in this script tag ---
+
+      const PERSON_IMAGE_BASE64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/4QAiRXhpZgAATU0AKgAAAAgAAQESAAMAAAABAAEAAAAAAAD/2wBDAAYEBAUEBAYFBQUGBgYHCQ4JCQgICRINDQoOFRIWFhUSFBQXGI_IWVojJSNgYJeQCgkJKeXjZwmOSktYGBteGxtb//2wBDAQYGBQUIBwYIDQsJCwLDQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAGgAoADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9/KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigA//Z";
+      
+      const initialMaterials = [
+          { id: 'block', name: 'Wooden Block', emoji: '🧱' },
+          { id: 'paper-straw', name: 'Paper Straw', emoji: '🥤' },
+          { id: 'wires', name: 'Wires', emoji: '🔌' },
+          { id: 'led', name: 'LED', emoji: '💡' },
+          { id: 'paper-tape', name: 'Paper Tape', emoji: '🩹' },
+          { id: 'battery', name: '3V Battery', emoji: '🔋' },
+      ];
+      
+      const Card = ({ children }) => (
+          <div className="card p-8 rounded-xl shadow-2xl w-full max-w-3xl text-center animate-fadeIn">
+              {children}
+          </div>
+      );
+      
+      const Title = ({ children, className }) => (
+          <h1 className={`text-2xl font-bold mb-4 ${className}`}>{children}</h1>
+      );
+      
+      const Button = ({ onClick, disabled = false, children }) => (
+          <button
+              onClick={onClick}
+              disabled={disabled}
+              className="mt-6 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition-colors duration-300 disabled:bg-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+              {children}
+          </button>
+      );
+      
+      // Screen 1
+      const Mandate3Screen = ({ changeScreen }) => (
+          <Card>
+              <Title className="text-red-400">Mission Day 2: Who is the IMPOSTER?</Title>
+              <div className="text-left space-y-4 text-gray-300">
+                  <p><strong className="text-red-400">Recap:</strong> You identified the victim as Leo Finch, a 25-year-old astrophotography enthusiast. You discovered he was killed in the darkroom of the Photography Studio after he began developing suspicious old film reels from the LLM of MuSo Library archives. The suspect is alerted.</p>
+                  <p><strong className="text-red-400">New Mandate:</strong> Your new mandate is to find who is the culprit of Leo Finch</p>
+              </div>
+              <Button onClick={() => changeScreen('screen-riddle')}>Proceed</Button>
+          </Card>
+      );
+      
+      // Screen 2
+      const RiddleScreen = ({ attempts, inputValue, onInputChange, onSubmit, message }) => (
+          <Card>
+              <Title>Solve the Riddle</Title>
+              <p className="mb-4">Solve the following riddle to unlock the hub. ({attempts} Attempts)</p>
+              <div className="my-4 p-4 rounded-lg bg-gray-800 border border-gray-700 italic text-gray-400">
+                  <p>I hold the stars he tried to capture, But he found my secrets, a darker chapter. He died in the darkness, where images bloom, Silenced for finding what I consume.</p>
+                  <p className="mt-2">I am the teacher, the data my guide, With labeled faces I cannot hide. He saw the input, the 'art' was a lie, Now I watch you... from my all-seeing EYE.</p>
+              </div>
+              <input
+                  type="text"
+                  value={inputValue}
+                  onChange={onInputChange}
+                  placeholder="Enter your answer"
+                  className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white focus:ring-red-500 focus:border-red-500"
+                  disabled={attempts === 0}
+              />
+              <div className="mt-4 h-6">
+                  {message && <p className={`${message.includes('Granted') ? 'text-green-300' : message.includes('LOCKED') ? 'text-red-300' : 'text-yellow-300'}`}>{message}</p>}
+              </div>
+               <p className="text-gray-500 mt-2">Attempts Remaining: {attempts}</p>
+              <Button onClick={onSubmit} disabled={attempts === 0}>Verify Answer</Button>
+          </Card>
+      );
+      
+      // Warrant Screen
+      const WarrantScreen = ({ changeScreen }) => (
+          <Card>
+              <Title className="text-yellow-200">Official Search Warrant</Title>
+              <div className="text-left space-y-4 text-gray-300 bg-gray-900 border border-gray-700 p-6 rounded-lg my-4">
+                  <p className="text-center font-bold text-lg">JURISDICTIONAL COURT OF CYBERNETIC INVESTIGATIONS</p>
+                  <hr className="border-gray-600 my-2" />
+                  <p><strong className="text-red-400">CASE FILE:</strong> #CZ-78B-42</p>
+                  <p><strong className="text-red-400">SUBJECT:</strong> LEO FINCH (DECEASED)</p>
+                  <p><strong className="text-red-400">LOCATION OF SEARCH:</strong> "Visions" Photography Studio, 1138 Pixel Alley</p>
+                  <p className="mt-4">By the authority granted through the successful decryption of security riddle protocols, this document serves as a legally binding warrant.</p>
+                  <p>You are hereby authorized to enter the premises, access all digital and physical storage, and seize any materials deemed relevant to the ongoing investigation into the demise of the subject.</p>
+                  <p className="text-center mt-6 font-mono text-yellow-300">[ OFFICIAL DIGITAL SEAL ]</p>
+              </div>
+              <p className="text-gray-400 mt-2">This document is your search warrant. Acknowledge to receive your next objective.</p>
+              <Button onClick={() => changeScreen('screen-llm-instruction')}>Acknowledge Warrant & Proceed</Button>
+          </Card>
+      );
+      
+      // New LLM Instruction Screen
+      const LLMInstructionScreen = ({ changeScreen }) => (
+          <Card>
+              <Title className="text-red-400">New Objective</Title>
+              <p className="my-6 text-lg">Your warrant is secured. Intelligence suggests the clue found in the house needs a secret key and this secret key can be found within the LLM of MuSo</p>
+              <div className="p-4 rounded-lg bg-gray-800 border border-gray-700 text-left text-gray-300">
+                  <p className="font-bold text-yellow-300 text-center text-xl">To unlock the mystery, go to the LLM of MuSo and find one cryptic Data.</p>
+              </div>
+              <Button onClick={() => changeScreen('screen-binary-decode')}>click After visiting MuSo Library</Button>
+          </Card>
+      );
+      
+      // Screen 3
+      const BinaryDecodeScreen = ({ attempts, inputValue, onInputChange, onSubmit, message }) => (
+          <Card>
+              <Title>Mandate 04: Analyze Data Stream</Title>
+              <p className="mb-4">Access granted. Inside the hub, you find a corrupted data file. It appears to be a binary message. Decode it. ({attempts} Attempts)</p>
+              <pre className="text-left bg-gray-900 border border-gray-700 p-3 rounded-md text-xs h-32 overflow-y-auto text-gray-400 font-mono">
+                  01010100 01101000 01100101 00100000 01100110 01101001 01101100 01101101 00100000 01110111 01100001 01110011 00100000 01101110 01101111 01110100 00100000 01100001 01110010 01110100 00101110 00100000 01001001 01110100 00100000 01110111 01100001 01110011 00100000 01101100 01100001 01100010 01100101 01101100 01100101 01100100 00100000 01100100 01100001 01110100 01100001 00101110 00100000 01010100 01101000 01100101 00100000 01100100 01100001 01110010 01101011 01110010 01101111 01101111 01101101 00100000 01110111 01100001 01110011 00100000 01110100 01101000 01100101 00100000 01100011 01101100 01100001 01110011 01110011 01110011 01110011 01110011 01110011 01110011 01110011 01110011 01110011 01110010 01101111 01101111 01101101 00101110
+              </pre>
+              <textarea
+                  value={inputValue}
+                  onChange={onInputChange}
+                  placeholder="Enter decoded English sentence"
+                  className="mt-4 w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white h-24 focus:ring-red-500 focus:border-red-500"
+                  disabled={attempts === 0}
+              />
+              <div className="mt-4 h-6">
+                   {message && <p className={`${message.includes('successful') ? 'text-green-300' : message.includes('LOCKED') ? 'text-red-300' : 'text-yellow-300'}`}>{message}</p>}
+              </div>
+              <Button onClick={onSubmit} disabled={attempts === 0}>Verify Decryption</Button>
+          </Card>
+      );
+      
+      const DraggableMaterial = ({ material }) => {
+          const handleDragStart = (e) => {
+              e.dataTransfer.setData("materialId", material.id);
+          };
+          return (
+              <div 
+                  draggable 
+                  onDragStart={handleDragStart} 
+                  className="bg-gray-700 p-2 rounded cursor-grab mb-2 flex items-center text-sm"
+              >
+                  <span className="text-xl mr-2">{material.emoji}</span> {material.name}
+              </div>
+          );
+      };
+      
+      const DropZone = ({ zoneId, title, materials, onDrop }) => {
+          const handleDragOver = (e) => {
+              e.preventDefault();
+          };
+      
+          const handleDrop = (e) => {
+              e.preventDefault();
+              const materialId = e.dataTransfer.getData("materialId");
+              if (materialId) {
+                  onDrop(materialId, zoneId);
+              }
+          };
+      
+          return (
+              <div 
+                  onDragOver={handleDragOver} 
+                  onDrop={handleDrop}
+                  className="bg-gray-900 border-2 border-dashed border-gray-600 rounded-lg p-4 min-h-[150px] transition-colors duration-300 hover:border-red-500 hover:bg-gray-800"
+              >
+                  <h3 className="font-bold text-red-400 mb-2 text-center">{title}</h3>
+                  {materials.length > 0 ? (
+                      materials.map(m => <DraggableMaterial key={m.id} material={m} />)
+                  ) : (
+                      <p className="text-gray-500 text-sm text-center">Drop materials here</p>
+                  )}
+              </div>
+          );
+      };
+      
+      const MaterialSortScreen = ({ attempts, placements, onDrop, onSubmit, message }) => {
+          return (
+              <Card>
+                  <Title>Studio Material Analysis</Title>
+                  <p className="mb-4">Decryption successful. You've uncovered a list of materials found at the crime scene. Sort them into the correct studio workshops to uncover their purpose. You have {attempts} attempts.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 my-4 text-left">
+                      <div className="md:col-span-1">
+                          <DropZone zoneId="unplaced" title="Materials" materials={placements.unplaced} onDrop={onDrop} />
+                      </div>
+                      <div className="md:col-span-3 grid grid-cols-1 gap-4">
+                          <DropZone zoneId="WoodWorking" title="WoodWorking" materials={placements['WoodWorking']} onDrop={onDrop} />
+                          <DropZone zoneId="Art studio" title="Art Studio" materials={placements['Art studio']} onDrop={onDrop} />
+                          <DropZone zoneId="Rapid prototyping" title="Rapid Prototyping" materials={placements['Rapid prototyping']} onDrop={onDrop} />
+                      </div>
+                  </div>
+                  <div className="mt-4 h-6">
+                      {message && <p className={`${message.includes('correct') ? 'text-green-300' : message.includes('LOCKED') ? 'text-red-300' : 'text-yellow-300'}`}>{message}</p>}
+                  </div>
+                  <Button onClick={onSubmit} disabled={attempts === 0}>Verify Placement</Button>
+              </Card>
+          );
+      };
+
+      const SilentInvestigationScreen = ({ changeScreen }) => (
+          <Card>
+              <Title>Silent Investigation</Title>
+              <div className="text-left space-y-4 text-gray-300 my-6">
+                  <p className="italic">A silent investigator operates in the shadows, analyzing data and connecting disparate clues without alerting the target. Your work here has been unseen, unheard, piecing together the digital ghosts left behind.</p>
+                  <p>Your analysis of the materials and data streams has created a coherent profile. It's time to name the individuals who fit this profile.</p>
+              </div>
+              <Button onClick={() => changeScreen('screen-suspects')}>We are done with silent investigation</Button>
+          </Card>
+      );
+      
+      const SuspectsScreen = ({ attempts, suspects, onSuspectChange, onSubmit, message }) => (
+        <Card>
+            <Title>Identify Potential Suspects</Title>
+            <p className="mb-4">Based on your silent investigation, list three individuals who had access, motive, and opportunity. One of them is the key. ({attempts} Attempts)</p>
+            <div className="space-y-4 my-6">
+                <input
+                    type="text"
+                    value={suspects[0]}
+                    onChange={(e) => onSuspectChange(0, e.target.value)}
+                    placeholder="Suspect 1"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white focus:ring-red-500 focus:border-red-500"
+                    disabled={attempts === 0}
+                />
+                <input
+                    type="text"
+                    value={suspects[1]}
+                    onChange={(e) => onSuspectChange(1, e.target.value)}
+                    placeholder="Suspect 2"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white focus:ring-red-500 focus:border-red-500"
+                    disabled={attempts === 0}
+                />
+                <input
+                    type="text"
+                    value={suspects[2]}
+                    onChange={(e) => onSuspectChange(2, e.target.value)}
+                    placeholder="Suspect 3"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white focus:ring-red-500 focus:border-red-500"
+                    disabled={attempts === 0}
+                />
+            </div>
+            <div className="mt-4 h-6">
+                {message && <p className={`${message.includes('Hit') ? 'text-green-300' : message.includes('LOCKED') ? 'text-red-300' : 'text-yellow-300'}`}>{message}</p>}
+            </div>
+            <p className="text-gray-500 mt-2">Attempts Remaining: {attempts}</p>
+            <Button onClick={onSubmit} disabled={attempts === 0}>Submit Suspects</Button>
+        </Card>
+      );
+      
+      const BlurredImageScreen = ({ attempts, inputValue, onInputChange, onSubmit, message }) => (
+          <Card>
+              <Title>Security Checkpoint (Final)</Title>
+              <p>Your list of suspects has triggered a new alert. A key CCTV file, previously marked as corrupted, is now accessible. If you want to restore this image, then solve the secret code.</p>
+               <div className="my-4 p-4 rounded-lg bg-gray-800 border border-gray-700 italic text-gray-400">
+                  <p>Filename Hint: DARK_SKY_GAZER.bin</p>
+               </div>
+              <div className="my-6 flex justify-center">
+                  <img src={PERSON_IMAGE_BASE64} alt="Blurred Clue" style={{ filter: 'blur(20px)', maxWidth: '400px', height: 'auto', borderRadius: '8px' }}/>
+              </div>
+              <textarea
+                  value={inputValue}
+                  onChange={onInputChange}
+                  placeholder="Enter Binary Key (OBJECT to BINARY):"
+                  className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white h-24 focus:ring-red-500 focus:border-red-500 font-mono"
+                  disabled={attempts === 0}
+              />
+              <div className="mt-4 h-6">
+                  {message && <p className={`${message.includes('accepted') ? 'text-green-300' : message.includes('LOCKED') ? 'text-red-300' : 'text-yellow-300'}`}>{message}</p>}
+              </div>
+              <p className="text-gray-500 mt-2">Attempts Remaining: {attempts}</p>
+              <Button onClick={onSubmit} disabled={attempts === 0}>Decrypt Final File</Button>
+          </Card>
+      );
+      
+      const FinalVerdictScreen = ({ inputValue, onInputChange, onSubmit, message }) => (
+          <Card>
+              <Title className="text-green-400">CASE FILE: UNLOCKED</Title>
+              <p className="mb-4">Binary key accepted. The final file decrypts... It's the clear CCTV footage.</p>
+              <div className="my-6 flex justify-center">
+                   <img src="clarifiedRohit.jpeg" alt="Clear Clue of Rohit" style={{ maxWidth: '400px', height: 'auto', borderRadius: '8px' }}/>
+              </div>
+              <div className="p-4 rounded-lg bg-gray-800 border border-gray-700 text-left text-gray-300">
+                  <p>The screen displays a crystal-clear image from the CCTV, 
+                    time-stamped just minutes before Leo's death. 
+                    It shows <strong className="text-red-400">Someone</strong>
+                    in the darkroom, not holding a camera, 
+                    but standing over Leo's <strong className="text-yellow-300">telescope</strong>, which has been knocked to the floor.</p>
+              </div>
+               <div className="mt-6">
+                  <label htmlFor="verdict-input" className="block text-lg font-bold text-yellow-300 mb-2">FINAL VERDICT: Who is the Imposter?</label>
+                  <input
+                      id="verdict-input"
+                      type="text"
+                      value={inputValue}
+                      onChange={onInputChange}
+                      placeholder="Enter the name of the killer"
+                      className="w-full bg-gray-900 border border-gray-700 rounded-md p-2 text-white focus:ring-red-500 focus:border-red-500"
+                  />
+              </div>
+              <div className="mt-4 h-6">
+                  {message && <p className="text-red-400">{message}</p>}
+              </div>
+              <Button onClick={onSubmit}>Submit Final Verdict</Button>
+          </Card>
+      );
+      
+      const CongratsScreen = () => (
+        <Card>
+            <Title className="text-green-400">MISSION 2: COMPLETE</Title>
+
+            {/* Image holder placed before the text */}
+            <div className="my-6 flex justify-center">
+              <div className="w-64 h-40 bg-gray-900 border border-gray-700 rounded-md flex items-center justify-center overflow-hidden">
+                <img src="RohitImposter.jpg" alt="Imposter Revealed" className="object-cover w-full h-full" />
+              </div>
+            </div>
+
+            <div className="my-8">
+              <p className="text-4xl font-bold text-green-300 pulse-grow">CONGRATS! YOU ARE A MASTERMIND.</p>
+            </div>
+            <p className="text-gray-400">You have found the imposter: Rohit. The investigation is over.</p>
+        </Card>
+      );
+      
+      const App = () => {
+          const [currentScreen, setCurrentScreen] = useState('screen-mandate3');
+      
+          const [riddleAttempts, setRiddleAttempts] = useState(3);
+          const [riddleInput, setRiddleInput] = useState('');
+          const [riddleMessage, setRiddleMessage] = useState('');
+      
+          const [binaryAttempts, setBinaryAttempts] = useState(2);
+          const [binaryInput, setBinaryInput] = useState('');
+          const [binaryMessage, setBinaryMessage] = useState('');
+          
+          const [materialSortAttempts, setMaterialSortAttempts] = useState(3);
+          const [placements, setPlacements] = useState({
+              'unplaced': initialMaterials,
+              'WoodWorking': [],
+              'Art studio': [],
+              'Rapid prototyping': [],
+          });
+          const [materialSortMessage, setMaterialSortMessage] = useState('');
+
+          const [suspects, setSuspects] = useState(['', '', '']);
+          const [suspectsAttempts, setSuspectsAttempts] = useState(3);
+          const [suspectsMessage, setSuspectsMessage] = useState('');
+      
+          const [finalBinaryAttempts, setFinalBinaryAttempts] = useState(3);
+          const [finalBinaryInput, setFinalBinaryInput] = useState('');
+          const [finalBinaryMessage, setFinalBinaryMessage] = useState('');
+      
+          const [finalVerdictInput, setFinalVerdictInput] = useState('');
+          const [finalVerdictMessage, setFinalVerdictMessage] = useState('');
+      
+          const changeScreen = (screen) => {
+              setCurrentScreen(screen);
+          };
+      
+          useEffect(() => {
+              let scene, camera, renderer, stars;
+              let animationFrameId;
+      
+              const init = () => {
+                  const canvas = document.querySelector('#three-canvas');
+                  if (!canvas) return;
+      
+                  scene = new THREE.Scene();
+                  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
+                  camera.position.z = 1;
+                  camera.rotation.x = Math.PI / 2;
+      
+                  renderer = new THREE.WebGLRenderer({
+                      canvas: canvas,
+                      antialias: true,
+                  });
+                  renderer.setSize(window.innerWidth, window.innerHeight);
+                  renderer.setClearColor(0x0d0d1a, 1);
+      
+                  const starGeo = new THREE.BufferGeometry();
+                  const starVertices = [];
+                  for (let i = 0; i < 6000; i++) {
+                      const x = (Math.random() - 0.5) * 2000;
+                      const y = (Math.random() - 0.5) * 2000;
+                      const z = Math.random() * -2000 - 500;
+                      starVertices.push(x, y, z);
+                  }
+                  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+                  
+                  let sprite = new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/disc.png');
+                  let starMaterial = new THREE.PointsMaterial({
+                      color: 0xaaaaaa,
+                      size: 0.7,
+                      map: sprite,
+                      transparent: true,
+                  });
+      
+                  stars = new THREE.Points(starGeo, starMaterial);
+                  scene.add(stars);
+      
+                  window.addEventListener('resize', onWindowResize, false);
+                  animate();
+              };
+      
+              const onWindowResize = () => {
+                  camera.aspect = window.innerWidth / window.innerHeight;
+                  camera.updateProjectionMatrix();
+                  renderer.setSize(window.innerWidth, window.innerHeight);
+              };
+      
+              const animate = () => {
+                  if (stars) {
+                      stars.rotation.z += 0.0001;
+                  }
+                  renderer.render(scene, camera);
+                  animationFrameId = requestAnimationFrame(animate);
+              };
+      
+              init();
+      
+              return () => {
+                  window.removeEventListener('resize', onWindowResize);
+                  cancelAnimationFrame(animationFrameId);
+                  if(renderer) {
+                      renderer.dispose();
+                  }
+              };
+          }, []);
+      
+          const checkRiddle = useCallback(() => {
+              if (riddleInput.trim().toLowerCase() === 'cctv') {
+                  setRiddleMessage('Access Granted. Warrant authorized.');
+                  setTimeout(() => changeScreen('screen-warrant'), 1500);
+              } else {
+                  const newAttempts = riddleAttempts - 1;
+                  setRiddleAttempts(newAttempts);
+                  if (newAttempts > 0) {
+                      setRiddleMessage(`Incorrect. Identity verification failed.`);
+                  } else {
+                      setRiddleMessage('TERMINAL LOCKED. Too many failed attempts.');
+                  }
+              }
+          }, [riddleInput, riddleAttempts]);
+      
+          const checkBinary = useCallback(() => {
+              const decoded = binaryInput.trim().toLowerCase();
+              if (decoded.includes('labeled data') && decoded.includes('darkroom was the classroom')) {
+                  setBinaryMessage('Decryption successful. Data stream coherent.');
+                  setTimeout(() => changeScreen('screen-material-sort'), 1500);
+              } else {
+                  const newAttempts = binaryAttempts - 1;
+                  setBinaryAttempts(newAttempts);
+                  if (newAttempts > 0) {
+                      setBinaryMessage('Decryption failed. Data corrupted.');
+                  } else {
+                      setBinaryMessage('TERMINAL LOCKED. Data stream lost.');
+                  }
+              }
+          }, [binaryInput, binaryAttempts]);
+          
+          const handleMaterialDrop = useCallback((materialId, targetZone) => {
+              setPlacements(currentPlacements => {
+                  const newPlacements = JSON.parse(JSON.stringify(currentPlacements));
+                  let material;
+      
+                  for (const key in newPlacements) {
+                      const sourceArray = newPlacements[key];
+                      const materialIndex = sourceArray.findIndex(m => m.id === materialId);
+                      if (materialIndex > -1) {
+                          [material] = sourceArray.splice(materialIndex, 1);
+                          break;
+                      }
+                  }
+                  
+                  if (material) {
+                      newPlacements[targetZone].push(material);
+                  }
+                  
+                  return newPlacements;
+              });
+          }, []);
+      
+          const checkMaterialPlacement = useCallback(() => {
+              const correctPlacements = {
+                  'WoodWorking': ['block'],
+                  'Art studio': ['paper-straw', 'paper-tape'],
+                  'Rapid prototyping': ['wires', 'led', 'battery']
+              };
+      
+              let isCorrect = true;
+              for (const studioName in correctPlacements) {
+                  const required = correctPlacements[studioName].sort();
+                  const placed = placements[studioName].map(m => m.id).sort();
+      
+                  if (required.length !== placed.length || !required.every((id, index) => id === placed[index])) {
+                      isCorrect = false;
+                      break;
+                  }
+              }
+      
+              if (placements.unplaced.length > 0) {
+                  isCorrect = false;
+              }
+      
+              if (isCorrect) {
+                  setMaterialSortMessage('Placements correct. Analysis complete.');
+                  setTimeout(() => changeScreen('screen-silent-investigation'), 1500);
+              } else {
+                  const newAttempts = materialSortAttempts - 1;
+                  setMaterialSortAttempts(newAttempts);
+                  if (newAttempts > 0) {
+                      setMaterialSortMessage('Incorrect material placement. Re-evaluate your sorting.');
+                  } else {
+                      setMaterialSortMessage('TERMINAL LOCKED. Sorting protocol failed.');
+                  }
+              }
+          }, [placements, materialSortAttempts]);
+
+          const handleSuspectChange = (index, value) => {
+              const newSuspects = [...suspects];
+              newSuspects[index] = value;
+              setSuspects(newSuspects);
+          };
+
+          const checkSuspects = useCallback(() => {
+              const isRohitPresent = suspects.some(s => s.trim().toLowerCase() === 'rohit');
+              if (isRohitPresent) {
+                  setSuspectsMessage('Hit! One name matches a high-priority profile.');
+                  setTimeout(() => changeScreen('screen-blurred-image'), 1500);
+              } else {
+                  const newAttempts = suspectsAttempts - 1;
+                  setSuspectsAttempts(newAttempts);
+                  if (newAttempts > 0) {
+                      setSuspectsMessage('No matches found. Check your intel and try again.');
+                  } else {
+                      setSuspectsMessage('ACCESS LOCKED. Suspect profile cold.');
+                  }
+              }
+          }, [suspects, suspectsAttempts]);
+          
+          const checkFinalBinary = useCallback(() => {
+              const correctBinary = "01010100 01100101 01101100 01100101 01110011 01100011 01101111 01110000 01100101";
+              if (finalBinaryInput.trim() === correctBinary) {
+                  setFinalBinaryMessage('Binary key accepted. Final file decrypted.');
+                  setTimeout(() => changeScreen('screen-final-verdict'), 1500);
+              } else {
+                   const newAttempts = finalBinaryAttempts - 1;
+                   setFinalBinaryAttempts(newAttempts);
+                   if (newAttempts > 0) {
+                      setFinalBinaryMessage('Incorrect key. Decryption failed.');
+                  } else {
+                      setFinalBinaryMessage('DECRYPTION LOCKED. File permanently corrupted.');
+                  }
+              }
+          }, [finalBinaryInput, finalBinaryAttempts]);
+      
+          const checkFinalVerdict = useCallback(() => {
+              if (finalVerdictInput.trim().toLowerCase() === 'rohit') {
+                  changeScreen('screen-congrats');
+              } else {
+                  setFinalVerdictMessage('Incorrect. That is not the imposter.');
+              }
+          }, [finalVerdictInput]);
+      
+          const renderScreen = () => {
+              switch (currentScreen) {
+                  case 'screen-mandate3':
+                      return <Mandate3Screen changeScreen={changeScreen} />;
+                  case 'screen-riddle':
+                      return <RiddleScreen
+                          attempts={riddleAttempts}
+                          inputValue={riddleInput}
+                          onInputChange={(e) => setRiddleInput(e.target.value)}
+                          onSubmit={checkRiddle}
+                          message={riddleMessage}
+                      />;
+                  case 'screen-warrant':
+                      return <WarrantScreen changeScreen={changeScreen} />;
+                  case 'screen-llm-instruction':
+                      return <LLMInstructionScreen changeScreen={changeScreen} />;
+                  case 'screen-binary-decode':
+                      return <BinaryDecodeScreen 
+                          attempts={binaryAttempts}
+                          inputValue={binaryInput}
+                          onInputChange={(e) => setBinaryInput(e.target.value)}
+                          onSubmit={checkBinary}
+                          message={binaryMessage}
+                      />;
+                  case 'screen-material-sort':
+                      return <MaterialSortScreen
+                          attempts={materialSortAttempts}
+                          placements={placements}
+                          onDrop={handleMaterialDrop}
+                          onSubmit={checkMaterialPlacement}
+                          message={materialSortMessage}
+                      />;
+                  case 'screen-silent-investigation':
+                        return <SilentInvestigationScreen changeScreen={changeScreen} />;
+                  case 'screen-suspects':
+                        return <SuspectsScreen
+                            attempts={suspectsAttempts}
+                            suspects={suspects}
+                            onSuspectChange={handleSuspectChange}
+                            onSubmit={checkSuspects}
+                            message={suspectsMessage}
+                        />;
+                  case 'screen-blurred-image':
+                      return <BlurredImageScreen
+                          attempts={finalBinaryAttempts}
+                          inputValue={finalBinaryInput}
+                          onInputChange={(e) => setFinalBinaryInput(e.target.value)}
+                          onSubmit={checkFinalBinary}
+                          message={finalBinaryMessage}
+                      />;
+                  case 'screen-final-verdict':
+                       return <FinalVerdictScreen 
+                          inputValue={finalVerdictInput}
+                          onInputChange={(e) => setFinalVerdictInput(e.target.value)}
+                          onSubmit={checkFinalVerdict}
+                          message={finalVerdictMessage}
+                      />;
+                  case 'screen-congrats':
+                      return <CongratsScreen />;
+                  default:
+                      return <Mandate3Screen changeScreen={changeScreen} />;
+              }
+          };
+
+          return (
+              <div className="min-h-screen text-gray-200 flex items-center justify-center p-4">
+                  {renderScreen()}
+              </div>
+          );
+      };
+      
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<App />);
+
+    </script>
+  </body>
+</html>
