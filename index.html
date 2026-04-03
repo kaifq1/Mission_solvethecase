@@ -378,7 +378,7 @@
             <div className="my-8">
               <p className="text-4xl font-bold text-green-300 pulse-grow">CONGRATS! YOU ARE A MASTERMIND.</p>
             </div>
-            <p className="text-gray-400">You have found the imposter: Rohit. The investigation is over.</p>
+            <p className="text-gray-400">You have found the imposter: Maahir. The investigation is over.</p>
         </Card>
       );
       
@@ -583,7 +583,7 @@
           };
 
           const checkSuspects = useCallback(() => {
-              const isRohitPresent = suspects.some(s => s.trim().toLowerCase() === 'rohit');
+              const isRohitPresent = suspects.some(s => s.trim().toLowerCase() === 'maahir');
               if (isRohitPresent) {
                   setSuspectsMessage('Hit! One name matches a high-priority profile.');
                   setTimeout(() => changeScreen('screen-blurred-image'), 1500);
@@ -615,7 +615,7 @@
           }, [finalBinaryInput, finalBinaryAttempts]);
       
           const checkFinalVerdict = useCallback(() => {
-              if (finalVerdictInput.trim().toLowerCase() === 'rohit') {
+              if (finalVerdictInput.trim().toLowerCase() === 'maahir') {
                   changeScreen('screen-congrats');
               } else {
                   setFinalVerdictMessage('Incorrect. That is not the imposter.');
